@@ -6,7 +6,8 @@ from shutil import which, rmtree
 from subprocess import run as sub_run, PIPE, STDOUT  # nosec B404
 
 import psydac
-
+# Get the absolute path to the psydac directory
+psydac_path = os.path.abspath(os.path.dirname(psydac.__path__[0]))
 
 def configure_logging(level=logging.INFO):
     """
@@ -32,6 +33,8 @@ def pyccelize_files(root_path: str, language: str = 'fortran', openmp: bool = Fa
     openmp : bool, optional
         Whether to enable OpenMP multithreading, by default False.
     """
+    if language not in ['c', 'fortran']:
+        logging.error(f"Unsupported language: {language}")
     pyccel_path = which('pyccel')
     if pyccel_path is None:
         logging.error("`pyccel` not found in PATH. Please ensure it is installed and accessible.")
@@ -41,11 +44,40 @@ def pyccelize_files(root_path: str, language: str = 'fortran', openmp: bool = Fa
     if openmp:
         parameters.append('--openmp')
 
+    # Cleanup if any files of the opposite language exist
+    cleanup = False
     for root, _, files in os.walk(root_path):
         for name in files:
             if name.endswith('_kernels.py'):
                 file_path = os.path.join(root, name)
-                logging.info(f"Pyccelizing: {file_path}")
+                # Check if the corresponding pyccelized file already exists
+                subdir = "__pyccel__"
+                generated_file_fortran = os.path.join(root, subdir, name[:-3] + '.f90')
+                generated_file_c = os.path.join(root, subdir, name[:-3] + '.c')
+                if language == 'fortran' and os.path.isfile(generated_file_c):
+                    cleanup = True
+                elif language == 'c' and os.path.isfile(generated_file_fortran):
+                    cleanup = True
+    if cleanup:
+        cleanup_files(psydac_path)
+
+    for root, _, files in os.walk(root_path):
+        for name in files:
+            if name.endswith('_kernels.py'):
+                file_path = os.path.join(root, name)
+                # Check if the corresponding pyccelized file already exists
+                subdir = "__pyccel__"
+
+                if language == 'fortran':
+                    generated_file = os.path.join(root, subdir, name[:-3] + '.f90')
+                elif language == 'c':
+                    generated_file = os.path.join(root, subdir, name[:-3] + '.c')
+
+                if os.path.isfile(generated_file):
+                    logging.info(f"Skipping {file_path}: Already pyccelized to {generated_file}")
+                    continue  # Skip already pyccelized files
+
+                # logging.info(f"Pyccelizing: {file_path}")
                 command = [pyccel_path, file_path] + parameters
                 logging.info(f"Running command: {' '.join(command)}")
 
@@ -55,7 +87,6 @@ def pyccelize_files(root_path: str, language: str = 'fortran', openmp: bool = Fa
                         logging.info(result.stdout.strip())
                 except Exception as e:
                     logging.error(f"Failed to pyccelize {file_path}: {e}")
-
 
 def cleanup_files(root_path: str):
     """
@@ -94,9 +125,6 @@ def main():
 
     # Configure logging
     configure_logging(logging.INFO)
-
-    # Get the absolute path to the psydac directory
-    psydac_path = os.path.abspath(os.path.dirname(psydac.__path__[0]))
 
     # Pyccelize kernel files
     pyccelize_files(psydac_path, language=args.language, openmp=args.openmp)
