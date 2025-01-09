@@ -114,7 +114,7 @@ def main():
         description="Pyccelize Psydac kernel files and optionally clean up build artifacts.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument('--language', type=str, default='fortran', choices=['fortran', 'c'],
+    parser.add_argument('--language', type=str, default='c', choices=['fortran', 'c'],
                         help="Language used to pyccelize kernel files.")
     parser.add_argument('--openmp', action='store_true',
                         help="Use OpenMP multithreading in generated code.")
@@ -126,13 +126,13 @@ def main():
     # Configure logging
     configure_logging(logging.INFO)
 
-    # Pyccelize kernel files
-    pyccelize_files(psydac_path, language=args.language, openmp=args.openmp)
-
     # Cleanup if requested
     if args.cleanup:
         print('Cleanup')
         cleanup_files(psydac_path)
+    else:
+        # Pyccelize kernel files
+        pyccelize_files(psydac_path, language=args.language, openmp=args.openmp)
 
 
 if __name__ == "__main__":
