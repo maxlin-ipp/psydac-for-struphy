@@ -1,5 +1,4 @@
 import argparse
-import logging
 import os
 import sys
 from shutil import which, rmtree
@@ -8,17 +7,6 @@ from subprocess import run as sub_run, PIPE, STDOUT  # nosec B404
 import psydac
 # Get the absolute path to the psydac directory
 psydac_path = os.path.abspath(os.path.dirname(psydac.__path__[0]))
-
-def configure_logging(level=logging.INFO):
-    """
-    Configure global logging settings.
-    """
-    logging.basicConfig(
-        level=level,
-        format="%(levelname)s: %(message)s",
-        stream=sys.stdout
-    )
-
 
 def pyccelize_files(root_path: str, language: str = 'fortran', openmp: bool = False):
     """
@@ -34,10 +22,10 @@ def pyccelize_files(root_path: str, language: str = 'fortran', openmp: bool = Fa
         Whether to enable OpenMP multithreading, by default False.
     """
     if language not in ['c', 'fortran']:
-        logging.error(f"Unsupported language: {language}")
+        print(f"Unsupported language: {language}")
     pyccel_path = which('pyccel')
     if pyccel_path is None:
-        logging.error("`pyccel` not found in PATH. Please ensure it is installed and accessible.")
+        print("`pyccel` not found in PATH. Please ensure it is installed and accessible.")
         return
 
     parameters = ['--language', language]
@@ -74,19 +62,19 @@ def pyccelize_files(root_path: str, language: str = 'fortran', openmp: bool = Fa
                     generated_file = os.path.join(root, subdir, name[:-3] + '.c')
 
                 if os.path.isfile(generated_file):
-                    logging.info(f"Skipping {file_path}: Already pyccelized to {generated_file}")
+                    print(f"Skipping {file_path}: Already pyccelized to {generated_file}")
                     continue  # Skip already pyccelized files
 
-                # logging.info(f"Pyccelizing: {file_path}")
+                # print(f"Pyccelizing: {file_path}")
                 command = [pyccel_path, file_path] + parameters
-                logging.info(f"Running command: {' '.join(command)}")
+                print(f"Running command: {' '.join(command)}")
 
                 try:
                     result = sub_run(command, stdout=PIPE, stderr=STDOUT, text=True, shell=False, check=True)  # nosec B603
                     if result.stdout.strip():
-                        logging.info(result.stdout.strip())
+                        print(result.stdout.strip())
                 except Exception as e:
-                    logging.error(f"Failed to pyccelize {file_path}: {e}")
+                    print(f"Failed to pyccelize {file_path}: {e}")
 
 def cleanup_files(root_path: str):
     """
@@ -97,7 +85,7 @@ def cleanup_files(root_path: str):
         for dirname in dirs:
             if dirname == '__pyccel__':
                 dir_to_remove = os.path.join(root, dirname)
-                logging.info(f"Removing directory: {dir_to_remove}")
+                print(f"Removing directory: {dir_to_remove}")
                 rmtree(dir_to_remove)
 
     # Remove .lock_acquisition.lock files
@@ -105,7 +93,7 @@ def cleanup_files(root_path: str):
         for filename in files:
             if filename == '.lock_acquisition.lock':
                 file_to_remove = os.path.join(root, filename)
-                logging.info(f"Removing lock file: {file_to_remove}")
+                print(f"Removing lock file: {file_to_remove}")
                 os.remove(file_to_remove)
 
 
@@ -122,9 +110,6 @@ def main():
                         help="Remove unnecessary files and directories after pyccelizing.")
 
     args = parser.parse_args()
-
-    # Configure logging
-    configure_logging(logging.INFO)
 
     # Cleanup if requested
     if args.cleanup:
