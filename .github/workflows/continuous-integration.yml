@@ -7,7 +7,7 @@ on:
   push:
     branches: [ devel ]
   pull_request:
-    branches: [ devel ]
+    branches: [ devel, main ]
 
 jobs:
   test:
@@ -17,8 +17,7 @@ jobs:
       matrix:
         os: [ ubuntu-latest ]
         # TODO: Make sure that struphy works with python > 3.11, keep the lower bound to 3.10
-        #python-version: [ 3.9, '3.10', '3.11', '3.12' ]
-        python-version: [ '3.11' ]
+        python-version: [ '3.10', '3.11', '3.12' ]
         isMerge:
           - ${{ github.event_name == 'push' && github.ref == 'refs/heads/devel' }}
         #exclude:
@@ -118,7 +117,7 @@ jobs:
       - if: steps.cache-petsc.outputs.cache-hit != 'true'
         name: Download a specific release of PETSc
         run: |
-          git clone --depth 1 --branch v3.21.4 https://gitlab.com/petsc/petsc.git
+          git clone --depth 1 --branch v3.22.2 https://gitlab.com/petsc/petsc.git
 
       - if: steps.cache-petsc.outputs.cache-hit != 'true'
         name: Install PETSc with complex support
@@ -126,7 +125,7 @@ jobs:
         run: |
           export PETSC_DIR=$(pwd)
           export PETSC_ARCH=petsc-cmplx
-          ./configure --with-scalar-type=complex --with-fortran-bindings=0 --have-numpy=1         
+          ./configure --with-scalar-type=complex --with-fortran-bindings=0 --have-numpy=1 --download-fblaslapack=1
           make all
           echo "PETSC_DIR=$PETSC_DIR" > petsc.env
           echo "PETSC_ARCH=$PETSC_ARCH" >> petsc.env
@@ -210,10 +209,10 @@ jobs:
           echo "PSYDAC_DIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
           echo "STRUPHY_DIR=$GITHUB_WORKSPACE/struphy" >> $GITHUB_ENV
 
-      - name: Clone struphy from GitLab (struphy-with-psydac-devel branch)
+      - name: Clone struphy from GitLab (devel branch)
         run: |
           # TODO: Use the struphy devel branch here when it's ready
-          git clone --branch struphy-with-psydac-devel https://gitlab.mpcdf.mpg.de/struphy/struphy.git $STRUPHY_DIR
+          git clone --branch devel https://gitlab.mpcdf.mpg.de/struphy/struphy.git $STRUPHY_DIR
       
       - name: Install struphy
         working-directory: ${{ env.STRUPHY_DIR }}
